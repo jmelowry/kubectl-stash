@@ -1,6 +1,9 @@
 import os
 import json
 from kubernetes import config, client
+from colorama import init, Fore, Back, Style
+
+init(autoreset=True)
 
 class KubectlStash:
     def __init__(self, namespace=None, context=None, environment=None):
@@ -74,7 +77,7 @@ class KubectlStash:
         """The main method to run the tool based on the provided or selected parameters."""
         if self.context:
             # Perform the actions needed based on the context, namespace, and environment
-            print(f"Using context: {self.context}, namespace: {self.namespace}, environment: {self.environment}")
+            print(f"Using context: {Fore.GREEN}{self.context}{Fore.RESET}, namespace: {Fore.GREEN}{self.namespace}{Fore.RESET}, environment: {Fore.green}{self.environment}{Fore.RESET}")
         else:
             self.interactive_mode()
 
