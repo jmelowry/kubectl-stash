@@ -7,7 +7,9 @@ class KubectlStash:
         self.namespace = namespace
         self.context = context
         self.environment = environment
+        self.config_path = os.path.join(os.path.expanduser('~'), '.kubectl_stash')
         self.kube_config_path = os.path.join(os.path.expanduser('~'), '.kube', 'config')
+        self.load_config()
 
     def load_kube_config(self):
         """Load Kubernetes configuration from the default location."""
@@ -22,25 +24,51 @@ class KubectlStash:
         else:
             return contexts
 
+    def load_config(self):
+        """Load KubectlStash configuration."""
+        if os.path.exists(self.config_path):
+            with open(self.config_path, 'r') as file:
+                config = json.load(file)
+                self.namespace = config.get('namespace', self.namespace)
+                self.context = config.get('context', self.context)
+                self.environment = config.get('environment', self.environment)
+
+    def save_config(self):
+        """Save the current configuration to a file."""
+        config = {
+            'namespace': self.namespace,
+            'context': self.context,
+            'environment': self.environment
+        }
+        with open(self.config_path, 'w') as file:
+            json.dump(config, file)
+
+    def prompt_with_default(self, message, default=None):
+        """Prompt the user with a default value."""
+        userInput = input(f"{message} [{'<none>' if default is None else default}]: ").strip()
+        return userInput or default
+
     def interactive_mode(self):
         """Interactively prompt the user to select a Kubernetes context, namespace, and environment."""
-        contexts = self.list_contexts()
-        if contexts:
-            print("Available Kubernetes Contexts:")
-            for index, context in enumerate(contexts):
-                print(f"{index + 1}. {context['name']}")
-            selected = int(input("Select a context by number: ")) - 1
-            self.context = contexts[selected]['name']
+        try:
+            contexts = self.list_contexts()
+            if contexts:
+                print("Available Kubernetes Contexts:")
+                for index, context in enumerate(contexts):
+                    print(f"{index + 1}. {context['name']}")
+                selected = int(self.prompt_with_default("Select a context by number", 1 if self.context is None else [c['name'] for c in contexts].index(self.context) + 1)) - 1
+                self.context = contexts[selected]['name']
 
-        # Prompt for namespace if not provided
-        if not self.namespace:
-            self.namespace = input("Enter Kubernetes namespace: ")
+            self.namespace = self.prompt_with_default("Enter Kubernetes namespace", self.namespace)
+            self.environment = self.prompt_with_default("Enter environment", self.environment)
 
-        # Prompt for environment if not provided
-        if not self.environment:
-            self.environment = input("Enter environment: ")
+            self.save_config()
 
-        # Here, you can add logic to "stash" these selections or perform other actions.
+            print(f"Using context: {self.context}, namespace: {self.namespace}, environment: {self.environment}")
+        except KeyboardInterrupt:
+            print("\nExiting..")
+        except ValueError as e:
+            print(f"Error: {e}")
 
     def run(self):
         """The main method to run the tool based on the provided or selected parameters."""
@@ -48,9 +76,9 @@ class KubectlStash:
             # Perform the actions needed based on the context, namespace, and environment
             print(f"Using context: {self.context}, namespace: {self.namespace}, environment: {self.environment}")
         else:
-            print("No context selected.")
+            self.interactive_mode()
 
 # Example usage within the same file (for testing purposes):
 if __name__ == "__main__":
     ks = KubectlStash()
-    ks.interactive_mode()
+    ks.run()
